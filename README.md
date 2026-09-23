@@ -1,10 +1,45 @@
 # Dating compatibility engine
 
+##What VecMatch is
+
+Most dating apps are good at filtering people by age, distance, appearance, and a handful of stated preferences. They are much worse at representing the things that often determine whether two people can actually build a relationship: how they handle conflict, how much reassurance they need, how directly they communicate, what closeness feels like to them, and whether they want their lives to become deeply intertwined.
+
+VecMatch is a prototype compatibility engine built around that problem.
+
+Instead of assigning someone a personality type from one questionnaire, it builds a multidimensional picture from their reactions to short statements such as:
+
+“Being comforted by my partner helps me calm down after conflict.”
+
+“I’d rather let things cool off than talk about an issue immediately.”
+
+“Doing what’s fair matters more to me than taking someone’s side.”
+
+“I’m comfortable relying on a partner during difficult times.”
+
+“I want a relationship where our lives are closely intertwined.”
+
+“Humour is one of the main ways I connect with people.”
+
+A user can respond Me, Not Me, or Skip. Each reaction contributes to a broader picture across areas such as communication, conflict, attachment, reassurance, values, relationship pace, independence, routine, and playfulness.
+
+The intention is to capture psychology as something messy and multidimensional. Someone might value emotional closeness while still needing space after conflict. They might want a serious long-term relationship but prefer it to develop slowly. They might be highly independent in everyday life while still needing explicit reassurance from a partner. VecMatch does not force those answers into one simplistic personality label.
+
+Compatibility is also not always the same as similarity. Two people who both communicate directly may understand each other easily, while two people with different social-energy levels may still work well together. Attachment-related needs are especially relational: someone who seeks reassurance and someone who withdraws under pressure may create predictable friction even if they agree on many other things.
+
+For example, consider a pair where:
+
+* One person wants to resolve disagreements immediately.
+* The other needs time alone before they can talk productively.
+* One interprets distance as a sign that the relationship is in danger.
+* The other experiences repeated reassurance requests as pressure.
+
+Neither person is inherently wrong, but the interaction between their needs may be difficult. VecMatch attempts to identify patterns like this before treating two profiles as strongly compatible.
+
+Explicit preferences still come first. If two people fall outside each other’s age, distance, gender, height, smoking, religion, or relationship-intent requirements, they are not rescued by a high personality score. For pairs that pass those boundaries, the engine considers their broader ways of thinking and relating.
+
+The goal is not to predict love, diagnose users, or declare that two people are soulmates. It is to surface potentially compatible pairs while making the reasons behind a score inspectable. Attraction, chemistry, circumstances, and the final decision remain human.
+
 Disclaimer: This was built as PROTOTYPE to see if I could get it to work, none of it should be hosted in its current state their are security issues if you were to host this. This is just simply an idea of how embeddings could be used to match people.
-
-A Rust and PostgreSQL backend prototype for matching people using profile constraints and interaction based personality vectors. The repository includes a repeatable, local scenario runner that uses synthetic people to show when a pair is rejected, scored, queued, or confirmed as a match. [Sample results](DEMO_RESULTS.md) show ten scenarios and per axis score breakdowns.
-
-This is a **portfolio prototype**. Its scoring weights, attachment categories, prompt embeddings, and 60% threshold are illustrative design choices, not validated measures of relationship compatibility.
 
 ## AI use declaration
 
