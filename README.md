@@ -6,7 +6,7 @@ Most dating apps are good at filtering people by age, distance, appearance, and 
 
 VecMatch is a prototype compatibility engine built around that problem.
 
-Instead of assigning someone a personality type from one questionnaire, it builds a multidimensional picture from their reactions to short statements such as:
+Instead of assigning someone a personality type from one questionnaire, it builds a multidimensional picture (vector representation) from their reactions to short statements such as:
 
 “Being comforted by my partner helps me calm down after conflict.”
 
