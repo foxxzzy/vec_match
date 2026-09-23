@@ -6,6 +6,8 @@ This demo uses synthetic users and the real local backend components. It reads p
 
 This is the output from the demo, you can rerun to verify it works but it will produce the same content as below, unless you chnage the content and the emebddings.
 
+The interactions to the content are obivously extreme and done in a way to ensure match or no match, in reality the mathcing will not be as clean as displayed in the below results.
+
 ## Pipeline
 
 1. Postgres hard gates check profile and preference compatibility.
