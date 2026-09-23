@@ -1,6 +1,6 @@
-# Dating compatibility engine (Rust demo)
+# Dating compatibility engine
 
-Disclaimer: This was built as PROTOTYPE to see if I could get it to work, none of it should be hosted in its current state their are secuirty issues if you were to host this. This is just simply an idea of how embeddings could be used to match people.
+Disclaimer: This was built as PROTOTYPE to see if I could get it to work, none of it should be hosted in its current state their are security issues if you were to host this. This is just simply an idea of how embeddings could be used to match people.
 
 A Rust and PostgreSQL backend prototype for matching people using profile constraints and interaction based personality vectors. The repository includes a repeatable, local scenario runner that uses synthetic people to show when a pair is rejected, scored, queued, or confirmed as a match. [Sample results](DEMO_RESULTS.md) show ten scenarios and per axis score breakdowns.
 
