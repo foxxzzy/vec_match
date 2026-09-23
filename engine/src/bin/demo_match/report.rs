@@ -1,0 +1,345 @@
+use std::fmt::Write as _;
+use std::fs;
+
+use anyhow::{Context, Result};
+
+use matching_engine_demo::matching::scoring::{
+    candidate_passes_threshold, CandidateScoreBreakdown, GLOBAL_MATCH_THRESHOLD,
+};
+
+use crate::fixtures::DemoUser;
+use crate::scenarios::ScenarioSpec;
+
+pub(crate) const REPORT_PATH: &str = "DEMO_RESULTS.md";
+
+pub(crate) struct EngineResult {
+    pub(crate) a_to_b: CandidateScoreBreakdown,
+    pub(crate) b_to_a: CandidateScoreBreakdown,
+    pub(crate) attachment_note: Option<String>,
+}
+
+pub(crate) struct ScenarioResult {
+    pub(crate) number: usize,
+    pub(crate) pair: String,
+    pub(crate) hard_gate: String,
+    pub(crate) compatibility: String,
+    pub(crate) outcome: String,
+}
+
+pub(crate) fn write_report_file(
+    axis_count: usize,
+    results: &[ScenarioResult],
+    detail_report: &str,
+) -> Result<()> {
+    let mut report = String::new();
+    write_report_header(&mut report, axis_count)?;
+    write_summary_table(&mut report, results)?;
+    report.push_str(detail_report);
+    fs::write(REPORT_PATH, report).context("failed to write DEMO_RESULTS.md")
+}
+
+pub(crate) fn print_engine_result(a_name: &str, b_name: &str, engine: &EngineResult) {
+    println!("COMPATIBILITY ENGINE");
+    println!(
+        "  {a_name} -> {b_name}: {:.1}% [{}]",
+        engine.a_to_b.final_score * 100.0,
+        pass_word(&engine.a_to_b)
+    );
+    println!(
+        "  {b_name} -> {a_name}: {:.1}% [{}]",
+        engine.b_to_a.final_score * 100.0,
+        pass_word(&engine.b_to_a)
+    );
+    println!(
+        "  Required threshold: {:.1}%",
+        GLOBAL_MATCH_THRESHOLD * 100.0
+    );
+
+    if let Some(note) = &engine.attachment_note {
+        println!("  Note: {note}");
+    }
+
+    println!();
+    println!("  Axis breakdown for {a_name} -> {b_name}");
+    println!("  Score = similarity, Weight = importance, Points = score x weight");
+    print_axis_table(&engine.a_to_b);
+    println!();
+}
+
+fn print_axis_table(breakdown: &CandidateScoreBreakdown) {
+    let mut rows = breakdown.axis_scores.clone();
+    rows.sort_by(|left, right| {
+        right
+            .weight
+            .partial_cmp(&left.weight)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    println!("  {:<24} {:>9} {:>8} {:>10}", "Axis", "Score", "Weight", "Points");
+    println!("  {}", "-".repeat(55));
+
+    for row in rows {
+        println!(
+            "  {:<24} {:>8.1}% {:>8.2} {:>10.3}",
+            pretty_axis(&row.axis_name),
+            row.score * 100.0,
+            row.weight,
+            row.contribution,
+        );
+    }
+
+    let total_points: f64 = breakdown.axis_scores.iter().map(|row| row.contribution).sum();
+    println!("  {}", "-".repeat(55));
+    println!("  {:<24} {:>8.1}%", "Final score", breakdown.final_score * 100.0);
+    println!("  {:<24} {:>9.2}", "Active weight", breakdown.used_weight);
+    println!("  {:<24} {:>9.3}", "Weighted points", total_points);
+}
+
+fn pass_word(breakdown: &CandidateScoreBreakdown) -> &'static str {
+    if candidate_passes_threshold(breakdown) {
+        "PASS"
+    } else {
+        "FAIL"
+    }
+}
+
+pub(crate) fn print_header() {
+    println!();
+    println!("VECTOR DATING BACKEND DEMO");
+    println!("==========================");
+    println!();
+    println!("10 isolated synthetic pairs demonstrate the real matching pipeline.");
+    println!();
+    println!("PIPELINE");
+    println!(
+        "  Database hard gate -> ledger interactions -> vectors -> weighted compatibility -> workflow"
+    );
+    println!();
+    println!("LEGEND");
+    println!("  Hard gate     SQL profile filter before expensive vector scoring");
+    println!("  Axis score    Personality similarity from 0% to 100%");
+    println!("  Weight        How important that axis is to the final score");
+    println!("  Points        Axis score multiplied by its weight");
+    println!("  Active weight Total weight of axes that had enough data to score");
+    println!("  Final score   Weighted points divided by active weight");
+    println!();
+}
+
+pub(crate) fn print_scenario_header(spec: &ScenarioSpec) {
+    println!("======================================================================");
+    println!("SCENARIO {}/10: {}", spec.number, spec.title);
+    println!("PAIR: {} + {}", spec.a_name, spec.b_name);
+    println!("TEST: {}", spec.explanation);
+    println!("======================================================================");
+    println!();
+}
+
+
+fn pretty_axis(axis: &str) -> String {
+    let mut output = String::new();
+    for (index, ch) in axis.chars().enumerate() {
+        if index > 0 && ch.is_uppercase() {
+            output.push(' ');
+        }
+        output.push(ch);
+    }
+    output
+}
+
+pub(crate) fn pair_name(spec: &ScenarioSpec) -> String {
+    format!("{} + {}", spec.a_name, spec.b_name)
+}
+
+fn write_report_header(report: &mut String, axis_count: usize) -> Result<()> {
+    writeln!(report, "# Vector Dating Backend Demo Results")?;
+    writeln!(report)?;
+    writeln!(report, "Generated by `cargo run --bin demo_match`.")?;
+    writeln!(report)?;
+    writeln!(
+        report,
+        "This demo uses synthetic users and the real local backend components. It reads prompt embeddings from the local database instead of hard-coding vectors into the demo."
+    )?;
+    writeln!(report)?;
+    writeln!(report, "## Pipeline")?;
+    writeln!(report)?;
+    writeln!(report, "1. Postgres hard gates check profile and preference compatibility.")?;
+    writeln!(report, "2. Rejected pairs stop before personality scoring.")?;
+    writeln!(
+        report,
+        "3. Passing pairs receive synthetic ledger interactions using stored prompt embeddings."
+    )?;
+    writeln!(report, "4. The existing vector code builds normalised personality vectors.")?;
+    writeln!(report, "5. The existing weighted scorer calculates compatibility.")?;
+    writeln!(report, "6. Selected pairs continue through queue decisions and final confirmation.")?;
+    writeln!(report)?;
+    writeln!(report, "## Legend")?;
+    writeln!(report)?;
+    writeln!(report, "| Term | Meaning |")?;
+    writeln!(report, "| --- | --- |")?;
+    writeln!(report, "| Hard gate | Database profile filter before vector scoring. |")?;
+    writeln!(report, "| Axis score | Personality similarity from 0% to 100%. |")?;
+    writeln!(report, "| Weight | Importance of that axis in the final score. |")?;
+    writeln!(report, "| Weighted points | Axis score from 0 to 1 multiplied by its weight. |")?;
+    writeln!(report, "| Active weight | Sum of weights for axes that had enough data to score. |")?;
+    writeln!(report, "| Final score | Total weighted points divided by active weight. |")?;
+    writeln!(report, "| Pass threshold | {:.0}% |", GLOBAL_MATCH_THRESHOLD * 100.0)?;
+    writeln!(report)?;
+    writeln!(
+        report,
+        "Embedded personality axes available in this local database: **{axis_count}**"
+    )?;
+    writeln!(report)?;
+    Ok(())
+}
+
+fn write_summary_table(report: &mut String, results: &[ScenarioResult]) -> Result<()> {
+    writeln!(report, "## Scenario Summary")?;
+    writeln!(report)?;
+    writeln!(report, "| # | Pair | Hard gate | Compatibility A/B | Outcome |")?;
+    writeln!(report, "| ---: | --- | --- | --- | --- |")?;
+    for result in results {
+        writeln!(
+            report,
+            "| {} | {} | {} | {} | {} |",
+            result.number, result.pair, result.hard_gate, result.compatibility, result.outcome
+        )?;
+    }
+    writeln!(report)?;
+    writeln!(report, "---")?;
+    writeln!(report)?;
+    Ok(())
+}
+
+pub(crate) fn write_hard_gate_failure(report: &mut String, spec: &ScenarioSpec) -> Result<()> {
+    writeln!(report, "## Scenario {}: {}", spec.number, spec.title)?;
+    writeln!(report)?;
+    writeln!(report, "**Pair:** {}", pair_name(spec))?;
+    writeln!(report)?;
+    writeln!(report, "**Setup:** {}", spec.explanation)?;
+    writeln!(report)?;
+    writeln!(report, "**Hard gate:** FAIL")?;
+    writeln!(report)?;
+    writeln!(
+        report,
+        "**Personality scoring:** Not run. The database rejected the pair before vector work was needed."
+    )?;
+    writeln!(report)?;
+    Ok(())
+}
+
+pub(crate) fn write_engine_scenario(
+    report: &mut String,
+    spec: &ScenarioSpec,
+    a: &DemoUser,
+    b: &DemoUser,
+    engine: &EngineResult,
+    outcome: &str,
+) -> Result<()> {
+    writeln!(report, "## Scenario {}: {}", spec.number, spec.title)?;
+    writeln!(report)?;
+    writeln!(report, "**Pair:** {}", pair_name(spec))?;
+    writeln!(report)?;
+    writeln!(report, "**Setup:** {}", spec.explanation)?;
+    writeln!(report)?;
+    writeln!(report, "**Hard gate:** PASS")?;
+    writeln!(report)?;
+    writeln!(report, "**Compatibility:**")?;
+    writeln!(report)?;
+    writeln!(
+        report,
+        "- {} to {}: **{:.1}%** ({})",
+        a.name,
+        b.name,
+        engine.a_to_b.final_score * 100.0,
+        pass_word(&engine.a_to_b)
+    )?;
+    writeln!(
+        report,
+        "- {} to {}: **{:.1}%** ({})",
+        b.name,
+        a.name,
+        engine.b_to_a.final_score * 100.0,
+        pass_word(&engine.b_to_a)
+    )?;
+    writeln!(
+        report,
+        "- Required threshold: **{:.1}%**",
+        GLOBAL_MATCH_THRESHOLD * 100.0
+    )?;
+
+    if let Some(note) = &engine.attachment_note {
+        writeln!(report)?;
+        writeln!(report, "> Note: {note}")?;
+    }
+
+    writeln!(report)?;
+    writeln!(report, "### Axis breakdown: {} to {}", a.name, b.name)?;
+    writeln!(report)?;
+    write_markdown_axis_table(report, &engine.a_to_b)?;
+    writeln!(report)?;
+    writeln!(report, "**Outcome:** {outcome}")?;
+    writeln!(report)?;
+    Ok(())
+}
+
+fn write_markdown_axis_table(
+    report: &mut String,
+    breakdown: &CandidateScoreBreakdown,
+) -> Result<()> {
+    let mut rows = breakdown.axis_scores.clone();
+    rows.sort_by(|left, right| {
+        right
+            .weight
+            .partial_cmp(&left.weight)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    writeln!(report, "| Axis | Score | Weight | Weighted points |")?;
+    writeln!(report, "| --- | ---: | ---: | ---: |")?;
+    for row in rows {
+        writeln!(
+            report,
+            "| {} | {:.1}% | {:.2} | {:.3} |",
+            pretty_axis(&row.axis_name),
+            row.score * 100.0,
+            row.weight,
+            row.contribution,
+        )?;
+    }
+
+    let total_points: f64 = breakdown.axis_scores.iter().map(|row| row.contribution).sum();
+    writeln!(
+        report,
+        "| **Final score** | **{:.1}%** | | |",
+        breakdown.final_score * 100.0
+    )?;
+    writeln!(report, "| Active weight | | {:.2} | |", breakdown.used_weight)?;
+    writeln!(report, "| Total weighted points | | | {:.3} |", total_points)?;
+    Ok(())
+}
+
+pub(crate) fn print_summary(results: &[ScenarioResult]) {
+    println!("======================================================================");
+    println!("DEMO SUMMARY");
+    println!("======================================================================");
+    println!();
+    println!("{:<3} {:<20} {:<8} {:<18} {}", "#", "Pair", "Gate", "Compatibility", "Outcome");
+    println!("{}", "-".repeat(95));
+    for result in results {
+        println!(
+            "{:<3} {:<20} {:<8} {:<18} {}",
+            result.number,
+            truncate(&result.pair, 20),
+            result.hard_gate,
+            result.compatibility,
+            result.outcome,
+        );
+    }
+}
+
+fn truncate(value: &str, max: usize) -> String {
+    if value.chars().count() <= max {
+        return value.to_string();
+    }
+    value.chars().take(max.saturating_sub(3)).collect::<String>() + "..."
+}

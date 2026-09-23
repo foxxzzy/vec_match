@@ -1,0 +1,16 @@
+# Local credentials and overrides
+.env
+.env.*
+!.env.example
+supabase/.env
+supabase/.env.*
+
+# Build outputs and local tooling
+target/
+node_modules/
+supabase/.branches/
+supabase/.temp/
+supabase/.profiles/
+.DS_Store
+Thumbs.db
+*.log
