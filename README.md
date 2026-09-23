@@ -6,40 +6,164 @@ Most dating apps are good at filtering people by age, distance, appearance, and 
 
 VecMatch is a prototype compatibility engine built around that problem.
 
-Instead of assigning someone a personality type from one questionnaire, it builds a multidimensional picture (vector representation) from their reactions to short statements such as:
+Instead of assigning someone a personality type from one questionnaire, it builds an evolving, multidimensional representation from their reactions to short statements such as:
 
-“Being comforted by my partner helps me calm down after conflict.”
+> “Being comforted by my partner helps me calm down after conflict.”
 
-“I’d rather let things cool off than talk about an issue immediately.”
+> “I’d rather let things cool off than talk about an issue immediately.”
 
-“Doing what’s fair matters more to me than taking someone’s side.”
+> “Doing what’s fair matters more to me than taking someone’s side.”
 
-“I’m comfortable relying on a partner during difficult times.”
+> “I’m comfortable relying on a partner during difficult times.”
 
-“I want a relationship where our lives are closely intertwined.”
+> “I want a relationship where our lives are closely intertwined.”
 
-“Humour is one of the main ways I connect with people.”
+> “Humour is one of the main ways I connect with people.”
 
-A user can respond Me, Not Me, or Skip. Each reaction contributes to a broader picture across areas such as communication, conflict, attachment, reassurance, values, relationship pace, independence, routine, and playfulness.
+A user can respond **Me**, **Not Me**, or **Skip**. Each reaction contributes to a broader picture across areas such as communication, conflict, attachment, reassurance, values, relationship pace, independence, routine, and playfulness.
 
-The intention is to capture psychology as something messy and multidimensional. Someone might value emotional closeness while still needing space after conflict. They might want a serious long-term relationship but prefer it to develop slowly. They might be highly independent in everyday life while still needing explicit reassurance from a partner. VecMatch does not force those answers into one simplistic personality label.
+The intention is to capture psychology as something messy and multidimensional. Someone might value emotional closeness while still needing space after conflict. They might want a serious long-term relationship but prefer it to develop slowly. They might be highly independent in everyday life while still needing explicit reassurance from a partner.
 
-Compatibility is also not always the same as similarity. Two people who both communicate directly may understand each other easily, while two people with different social-energy levels may still work well together. Attachment-related needs are especially relational: someone who seeks reassurance and someone who withdraws under pressure may create predictable friction even if they agree on many other things.
+VecMatch does not force those answers into one simplistic personality label or one overall personality vector. It maintains a separate vector for each area so that agreement in one part of a relationship cannot hide a serious difference in another.
+
+## How prompts become vectors
+
+Every prompt is assigned to a personality axis and converted into an **embedding**.
+
+An embedding is a high-dimensional vector representing the meaning of the prompt. Statements with related meanings should produce vectors pointing in similar directions, even when they use different wording.
+
+For example, these prompts both express a preference for direct communication:
+
+> “I usually say exactly what I mean rather than hinting at it.”
+
+> “I get frustrated when people imply things instead of saying them clearly.”
+
+Their embeddings should be closer to each other than to a prompt about an unrelated subject such as routine or social energy.
+
+The prompt is embedded once and stored in PostgreSQL. The matching process therefore does not repeatedly call an AI model, and no language model is asked to decide whether two people should date.
+
+When a user reacts, the prototype treats the response as a direction:
+
+```text
+Me      -> use the prompt embedding
+Not Me  -> use the embedding in the opposite direction
+Skip    -> record the interaction, but contribute no movement
+```
+
+That contribution is also adjusted by the prompt’s importance and by time decay:
+
+```text
+contribution =
+    prompt embedding
+    × reaction direction
+    × prompt weight
+    × time decay
+```
+
+The interaction is stored in a ledger rather than immediately disappearing into a final score. This preserves the information needed to rebuild a user’s vectors if they change a reaction or if the weighting and decay rules are updated.
+
+Interactions are grouped by personality axis. Their weighted vectors are added together and then normalised:
+
+```text
+axis vector = normalise(sum of interaction contributions)
+```
+
+This produces a collection of vectors describing the user across different areas of compatibility.
+
+The approach allows:
+
+- Semantically similar reactions to reinforce one another.
+- Contradictory reactions to pull an axis in competing directions.
+- More important prompts to have greater influence.
+- Older interactions to gradually matter less.
+- Different parts of someone’s personality to remain separate.
+- A user’s representation to evolve instead of being permanently fixed after one questionnaire.
+
+This is still a prototype assumption rather than a validated psychological model. In particular, treating **Not Me** as the opposite vector direction is an engineering experiment that would need testing against real user data.
+
+## How two users are compared
+
+Before any vector comparison takes place, PostgreSQL applies the users’ explicit profile and preference constraints in both directions.
+
+These include:
+
+- Age.
+- Distance.
+- Gender preferences.
+- Height preferences.
+- Smoking preferences.
+- Religion requirements.
+- Relationship intentions.
+
+These are treated as hard boundaries. A high personality score cannot compensate for a pairing that one of the users has explicitly ruled out.
+
+For pairs that pass those checks, VecMatch compares the corresponding axis vectors using cosine similarity. Cosine similarity measures whether two vectors point in similar directions rather than whether one user has answered more prompts than the other.
+
+The raw cosine result ranges from `-1` to `1` and is converted into a compatibility score between `0` and `1`:
+
+```text
+axis score = (cosine similarity + 1) / 2
+```
+
+A value near `1` means the users’ vectors are strongly aligned on that axis. A value near `0` means they point in opposing directions.
+
+Each axis has an importance weight. The final compatibility result is a weighted average of the axes for which both users have enough data:
+
+```text
+final score =
+    sum(axis score × axis importance)
+    / sum(active axis importance)
+```
+
+Missing data is not treated as incompatibility. If an axis cannot be scored, it is excluded from both sides of the calculation rather than silently contributing a zero.
+
+The current prototype accepts candidates scoring at or above `60%`. The individual axis scores remain available so the result can be inspected instead of being presented as an unexplained match percentage.
+
+## Attachment is treated differently
+
+Compatibility is not always the same as similarity.
+
+Most axes compare whether two users point in a similar direction. Attachment-related needs are more relational, so VecMatch handles them separately.
+
+The user vectors for **Comfort With Closeness** and **Need For Reassurance** are compared with stored anchor vectors. Those anchors represent patterns such as:
+
+- Low, neutral, or high avoidance of closeness.
+- Low, neutral, or high need for reassurance.
+
+The nearest anchor on each axis produces a prototype attachment category. VecMatch then scores the interaction between the two users’ categories rather than assuming that identical attachment patterns are always best.
+
+This is intended to identify dynamics such as one person repeatedly seeking reassurance while the other withdraws when they feel pressured.
 
 For example, consider a pair where:
 
-* One person wants to resolve disagreements immediately.
-* The other needs time alone before they can talk productively.
-* One interprets distance as a sign that the relationship is in danger.
-* The other experiences repeated reassurance requests as pressure.
+- One person wants to resolve disagreements immediately.
+- The other needs time alone before they can talk productively.
+- One interprets distance as a sign that the relationship is in danger.
+- The other experiences repeated reassurance requests as pressure.
 
-Neither person is inherently wrong, but the interaction between their needs may be difficult. VecMatch attempts to identify patterns like this before treating two profiles as strongly compatible.
+Neither person is inherently wrong. They may agree strongly on values, humour, lifestyle, and their future, but the interaction between their conflict and reassurance needs could still create predictable friction. VecMatch attempts to represent that interaction rather than flattening everything into “similar” or “different”.
 
-Explicit preferences still come first. If two people fall outside each other’s age, distance, gender, height, smoking, religion, or relationship-intent requirements, they are not rescued by a high personality score. For pairs that pass those boundaries, the engine considers their broader ways of thinking and relating.
+## From compatibility score to match
 
-The goal is not to predict love, diagnose users, or declare that two people are soulmates. It is to surface potentially compatible pairs while making the reasons behind a score inspectable. Attraction, chemistry, circumstances, and the final decision remain human.
+Passing the compatibility threshold does not create a match.
 
-Disclaimer: This was built as PROTOTYPE to see if I could get it to work, none of it should be hosted in its current state their are security and privacy issues if you were to host this. This is just simply an idea / experiment of how embeddings could be used to match people.
+Candidates move through a staged process:
+
+1. Explicit preferences are checked in both directions.
+2. Available personality axes are scored.
+3. Passing candidates are ranked by compatibility.
+4. Ranked candidates are released into each user’s queue.
+5. Both users must independently express interest.
+6. Any required questions must be answered.
+7. Both users make a final decision.
+8. A confirmed match is created only if both final decisions are **yes**.
+
+The engine can decide which pairs appear worth introducing, but attraction, chemistry, circumstances, and the final decision remain human.
+
+The goal is not to predict love, diagnose users, or declare that two people are soulmates. It is to explore whether embeddings and interaction history can represent the messy parts of compatibility more effectively while keeping the resulting score understandable and inspectable.
+
+## Disclaimer: 
+This was built as PROTOTYPE to see if I could get it to work, none of it should be hosted in its current state their are security and privacy issues if you were to host this. This is just simply an idea / experiment of how embeddings could be used to match people.
 
 The prompts and weighting will also need to be verified and checked in reality before we can say it is any good or not.
 
@@ -52,15 +176,6 @@ AI also created the demo and helped to make my wording for the readme clearer an
 
 all architectural decisions were made by me.
 
-## How matching works
-
-1. A PostgreSQL function refills a user's candidate pool after checking profile and preference constraints in both directions (including age, location, height, gender, and smoking preferences). Rejected pairs never reach vector scoring.
-2. A user reaction to a prompt becomes an entry in the interaction ledger. Prompt embeddings, reaction direction, prompt weight, and time decay contribute to an axis vector; the result is normalised and stored for reuse.
-3. Two attachment related axis are compared to stored anchor vectors. Other scored axis use cosine similarity between the users' vectors, mapped to a 0–1 score.
-4. Scores are weighted across available axis and divided by their **active** weight. The prototype accepts scores at or above 0.60; axis with missing data do not contribute. The demo evaluates both directions.
-5. Passing candidates enter the serious candidate / release queue flow. Reciprocal interest can advance a pair to questions and final decisions; both final yes decisions create a match.
-
-The demo shows this flow with ten deliberately chosen synthetic pairs. It reuses the real database functions and matching services, but constructs controlled interactions so the expected outcomes are understandable. The precomputed prompt embeddings in `supabase/seed.sql` mean **the demo does not call an embedding API or need an API key**.
 
 ## Repository map
 
