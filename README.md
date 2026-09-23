@@ -1,6 +1,6 @@
 # Dating compatibility engine
 
-##What VecMatch is
+## What VecMatch is
 
 Most dating apps are good at filtering people by age, distance, appearance, and a handful of stated preferences. They are much worse at representing the things that often determine whether two people can actually build a relationship: how they handle conflict, how much reassurance they need, how directly they communicate, what closeness feels like to them, and whether they want their lives to become deeply intertwined.
 
