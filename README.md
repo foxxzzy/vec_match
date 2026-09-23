@@ -39,7 +39,7 @@ Explicit preferences still come first. If two people fall outside each other’s
 
 The goal is not to predict love, diagnose users, or declare that two people are soulmates. It is to surface potentially compatible pairs while making the reasons behind a score inspectable. Attraction, chemistry, circumstances, and the final decision remain human.
 
-Disclaimer: This was built as PROTOTYPE to see if I could get it to work, none of it should be hosted in its current state their are security issues if you were to host this. This is just simply an idea of how embeddings could be used to match people.
+Disclaimer: This was built as PROTOTYPE to see if I could get it to work, none of it should be hosted in its current state their are security and privacy issues if you were to host this. This is just simply an idea / experiment of how embeddings could be used to match people.
 
 ## AI use declaration
 
