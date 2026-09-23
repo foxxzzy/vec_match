@@ -41,6 +41,8 @@ The goal is not to predict love, diagnose users, or declare that two people are 
 
 Disclaimer: This was built as PROTOTYPE to see if I could get it to work, none of it should be hosted in its current state their are security and privacy issues if you were to host this. This is just simply an idea / experiment of how embeddings could be used to match people.
 
+The prompts and weighting will also need to be verified and checked in reality before we can say it is any good or not.
+
 ## AI use declaration
 
 AI was used in this project to aid in some of the development for example, the boilerplate for the db endpoints, helping debug, some functions etc.
