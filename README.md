@@ -197,6 +197,7 @@ all architectural decisions were made by me.
 Prerequisites: Rust toolchain supporting edition 2024, Node.js/npm, Docker, and the Supabase CLI installed from this project's `package-lock.json`. The Supabase config specifies PostgreSQL 17 and local port 54322. Use a **disposable local database**; `supabase db reset` clears it and the demo recreates synthetic auth users on each run.
 
 ```bash
+cd engine
 npm ci
 npx supabase start
 npx supabase db reset
