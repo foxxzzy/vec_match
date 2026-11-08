@@ -32,13 +32,13 @@ pub async fn save_content_and_prompt(
 
     let content_insert_res = sqlx::query(
         r#"
-        INSERT INTO content_who_are_they (prompt_id, axis, content, anchor, details)
+        INSERT INTO content_who_are_they (prompt_id, axis, content, anchor, detail)
         VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT (prompt_id) DO UPDATE
         SET axis = EXCLUDED.axis,
             content = EXCLUDED.content,
             anchor = EXCLUDED.anchor,
-            details = EXCLUDED.details
+            detail = EXCLUDED.detail
         "#,
     )
     .bind(display.id.0)
