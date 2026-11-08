@@ -39,7 +39,7 @@ pub async fn export_content_for_axis(
 
     let rows = match sqlx::query_as::<_, ExportedContentRow>(
         r#"
-        SELECT prompt_id, axis, content, anchor, details
+        SELECT prompt_id, axis, content, anchor, detail AS details
         FROM content_who_are_they
         WHERE axis = $1
         ORDER BY prompt_id
